@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#10252b">
+<title>Snake Master — Premium Snake Game</title>
+<meta name="description" content="Play Snake Master, a sleek mobile-friendly snake arcade game. Swipe or use the arrow controls.">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;background:radial-gradient(circle at 20% 0%,#2b2357,#10131f 45%,#060a12 100%);color:#eefbf5;font-family:system-ui,Arial,sans-serif;padding:12px;overscroll-behavior:none;touch-action:manipulation}
+  .game{width:min(96vw,520px);background:linear-gradient(160deg,#171d31,#0d2026);border:1px solid #4a4976;border-radius:22px;padding:clamp(12px,3.5vw,20px);box-shadow:0 24px 80px #0009,0 0 30px #8b5cf622}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+  h1{font-size:clamp(1.2rem,4vw,1.8rem);margin:0}.header-right{display:flex;align-items:center;gap:8px}.sound-btn{border:1px solid #5e5b8c;border-radius:10px;background:#252d46;color:#f4f0ff;padding:9px 10px;font-weight:700;cursor:pointer;white-space:nowrap}.score{background:#282548;border:1px solid #6555a8;padding:9px 14px;border-radius:12px;font-weight:700;white-space:nowrap}
+  canvas{display:block;width:100%;height:auto;aspect-ratio:1;background:#09191d;border:2px solid #2d514b;border-radius:12px;image-rendering:pixelated;touch-action:none;user-select:none;-webkit-user-select:none}
+  .status{text-align:center;min-height:26px;margin:12px 0;color:#b9d8ce}
+  .actions{display:flex;gap:10px}.actions button,.pad button{border:0;border-radius:12px;background:linear-gradient(135deg,#b5ff68,#37d6a0);color:#082019;font-weight:800;font-size:1rem;padding:12px 15px;cursor:pointer}
+  .actions button{flex:1;min-height:46px}.actions button.secondary{background:#252d46;color:#e8fff4}
+  button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .pad{display:grid;grid-template-columns:repeat(3, minmax(0, 76px));justify-content:center;gap:8px;max-width:270px;margin:14px auto 0;user-select:none;-webkit-user-select:none}
+  .pad button{font-size:1.4rem;min-height:58px;padding:10px 8px;box-shadow:0 4px 0 #174d3b}.pad button:active{transform:translateY(2px);box-shadow:0 2px 0 #174d3b}.pad .empty{visibility:hidden}
+  @media(max-width:380px){body{padding:6px}.game{width:100%;border-radius:16px}.actions{gap:6px}.actions button{font-size:.86rem;padding:10px 5px}.pad{gap:6px}.pad button{min-height:54px}.help{font-size:.8rem}}
+  .help{text-align:center;font-size:.88rem;color:#b0b8d0;line-height:1.6;margin:14px 0 0}
+  .ad-slot{min-height:54px;margin:10px 0 14px;border:1px dashed #494768;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#8e8cae;font-size:.68rem;letter-spacing:.08em}.ad-slot small{font-size:.72rem;letter-spacing:0;color:#777f99}
+  h1{letter-spacing:-.04em} canvas{box-shadow:inset 0 0 25px #36d58110}
+</style>
+</head>
+<body>
+<main class="game">
+  <header><h1>🐍 Snake Master</h1><div class="header-right"><button class="sound-btn" id="soundToggle" aria-pressed="true">🔊 Sound On</button><div class="score">⭐ <span id="score">0</span><small style="display:block;font-size:.68rem;color:#c7c4ff">BEST: <span id="best">0</span></small></div></div></header>
+  <canvas id="board" width="400" height="400" aria-label="Snake game board"></canvas>
+  <div class="status" id="status">তোমার সেরা স্কোর তৈরি করো!</div>
+  <div class="ad-slot" aria-label="বিজ্ঞাপনের জায়গা"><span>AD SPACE</span><small>এখানে ভবিষ্যতে বিজ্ঞাপন দেখানো যাবে</small></div>
+  <p class="help" style="margin:0 0 10px">📱 স্ক্রিনে আঙুল দিয়ে সোয়াইপ করেও সাপ চালাতে পারবে</p>
+  <div class="actions">
+    <button id="start">▶ খেলা শুরু</button>
+    <button id="pause" class="secondary">⏸ বিরতি</button>
+    <button id="restart" class="secondary">↻ নতুন গেম</button>
+  </div>
+  <div class="pad" aria-label="মুভমেন্ট কন্ট্রোল">
+    <span class="empty"></span><button data-dir="up" aria-label="উপরে">▲</button><span class="empty"></span>
+    <button data-dir="left" aria-label="বামে">◀</button><button data-dir="down" aria-label="নিচে">▼</button><button data-dir="right" aria-label="ডানে">▶</button>
+  </div>
+  <p class="help">কিবোর্ডের ↑ ↓ ← → অথবা W A S D চাপো।<br>🍎 খাবার খেলে সাপ বড় হবে। দেয়াল বা নিজের গায়ে লাগলে Game Over!</p>
+</main>
+<script>
+(() => {
+  const canvas = document.getElementById('board'), ctx = canvas.getContext('2d');
+  const scoreEl = document.getElementById('score'), statusEl = document.getElementById('status');
+  const bestEl = document.getElementById('best');
+  let best = 0; try { best = Number(localStorage.getItem('snakeMasterBest') || 0); } catch(e) {}
+  bestEl.textContent = best;
+  const startBtn = document.getElementById('start'), pauseBtn = document.getElementById('pause');
+  const N = 20, CELL = canvas.width / N;
+  let snake, food, dir, nextDir, score, timer, running, over;
+  // Locally generated sound effects; no audio files or external services needed.
+  let soundOn = true, audioCtx = null, moveSoundCount = 0;
+  const soundBtn = document.getElementById('soundToggle');
+  function tone(freq, duration=0.09, type='sine', volume=0.045, delay=0) {
+    if (!soundOn) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!audioCtx) audioCtx = new AC();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(volume, audioCtx.currentTime + delay + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + delay + duration);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(audioCtx.currentTime + delay);
+      osc.stop(audioCtx.currentTime + delay + duration + 0.02);
+    } catch(e) {}
+  }
+  function playSound(kind) {
+    if (kind === 'start') { tone(440,.08,'triangle',.035); tone(660,.1,'triangle',.035,.09); }
+    if (kind === 'eat') { tone(660,.08,'sine',.05); tone(880,.12,'sine',.05,.08); }
+    if (kind === 'over') { tone(330,.13,'triangle',.05); tone(220,.22,'triangle',.045,.14); }
+    if (kind === 'pause') tone(440,.07,'sine',.03);
+    if (kind === 'move') { moveSoundCount++; if(moveSoundCount%4===0) tone(260,.025,'square',.008); }
+  }
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? '🔊 Sound On' : '🔇 Sound Off';
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+    if (soundOn) playSound('start');
+  });
+  function randomFood(){
+    let p;
+    do { p = {x:Math.floor(Math.random()*N), y:Math.floor(Math.random()*N)}; }
+    while (snake.some(s=>s.x===p.x && s.y===p.y));
+    return p;
+  }
+  function reset(){
+    clearInterval(timer); timer=null; running=false; over=false; score=0;
+    snake=[{x:9,y:10},{x:8,y:10},{x:7,y:10}]; dir='right'; nextDir='right';
+    food=randomFood(); scoreEl.textContent=score; statusEl.textContent='শুরু করতে “খেলা শুরু” চাপো';
+    startBtn.textContent='▶ খেলা শুরু'; draw();
+  }
+  function draw(){
+    ctx.fillStyle='#09191d'; ctx.fillRect(0,0,400,400);
+    ctx.strokeStyle='#10282a'; ctx.lineWidth=1;
+    for(let i=0;i<=N;i++){ctx.beginPath();ctx.moveTo(i*CELL,0);ctx.lineTo(i*CELL,400);ctx.stroke();ctx.beginPath();ctx.moveTo(0,i*CELL);ctx.lineTo(400,i*CELL);ctx.stroke();}
+    // Food
+    const fx=food.x*CELL+CELL/2, fy=food.y*CELL+CELL/2;
+    ctx.fillStyle='#ff5b63';ctx.beginPath();ctx.arc(fx,fy,CELL*.36,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#8ff0a4';ctx.fillRect(fx+2,fy-CELL*.43,3,6);
+    snake.forEach((p,i)=>{
+      const pad=1.5; ctx.fillStyle=i===0?'#a1ffc5':'#36d581';
+      ctx.beginPath();ctx.roundRect(p.x*CELL+pad,p.y*CELL+pad,CELL-pad*2,CELL-pad*2,4);ctx.fill();
+      if(i===0){ctx.fillStyle='#083b2b';let ex=p.x*CELL+CELL/2,ey=p.y*CELL+CELL/2;
+        if(dir==='left'||dir==='right'){ctx.fillRect(ex+(dir==='right'?3:-5),ey-4,2,2);ctx.fillRect(ex+(dir==='right'?3:-5),ey+3,2,2);}
+        else {ctx.fillRect(ex-4,ey+(dir==='down'?3:-5),2,2);ctx.fillRect(ex+3,ey+(dir==='down'?3:-5),2,2);}
+      }
+    });
+    if(over){ctx.fillStyle='#061114bb';ctx.fillRect(0,0,400,400);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 30px system-ui';ctx.fillText('GAME OVER',200,190);ctx.font='18px system-ui';ctx.fillText('স্কোর: '+score,200,222);}
+    else if(!running){ctx.fillStyle='#06111488';ctx.fillRect(0,0,400,400);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 20px system-ui';ctx.fillText('SNAKE MASTER',200,193);}
+  }
+  function tick(){
+    dir=nextDir; const h={...snake[0]};
+    if(dir==='up')h.y--; if(dir==='down')h.y++; if(dir==='left')h.x--; if(dir==='right')h.x++;
+    if(h.x<0||h.x>=N||h.y<0||h.y>=N||snake.some((p,i)=>i<snake.length-1&&p.x===h.x&&p.y===h.y)){
+      clearInterval(timer);timer=null;running=false;over=true;playSound('over');statusEl.textContent='গেম শেষ! নতুন গেম চাপলে আবার খেলতে পারবে।';startBtn.textContent='▶ আবার খেলো';draw();return;
+    }
+    snake.unshift(h);
+    if(h.x===food.x&&h.y===food.y){playSound('eat');score+=10;scoreEl.textContent=score;if(score>best){best=score;bestEl.textContent=best;try{localStorage.setItem('snakeMasterBest',String(best));}catch(e){}}food=randomFood();}
+    else { snake.pop(); playSound('move'); }
+    draw();
+  }
+  function start(){if(over)reset();if(running)return;playSound('start');running=true;statusEl.textContent='খেলা চলছে — খাবার ধরো!';startBtn.textContent='▶ চলছে';timer=setInterval(tick,125);draw();}
+  function pause(){if(!running)return;playSound('pause');clearInterval(timer);timer=null;running=false;statusEl.textContent='খেলা থেমে আছে — আবার শুরু চাপো';startBtn.textContent='▶ আবার শুরু';draw();}
+  function setDirection(d){
+    const opposite={up:'down',down:'up',left:'right',right:'left'};
+    if(d!==opposite[dir])nextDir=d;
+    if(!running&&!over) { /* direction is queued until game starts */ }
+  }
+  startBtn.addEventListener('click',start);pauseBtn.addEventListener('click',pause);document.getElementById('restart').addEventListener('click',reset);
+  document.querySelectorAll('[data-dir]').forEach(b=>{
+    const steer=()=>setDirection(b.dataset.dir);
+    b.addEventListener('pointerdown',e=>{e.preventDefault();steer();});
+    b.addEventListener('click',e=>{e.preventDefault();steer();});
+  });
+  // Swipe controls for phones and tablets
+  let touchX=0, touchY=0;
+  canvas.addEventListener('touchstart',e=>{if(!e.changedTouches.length)return;touchX=e.changedTouches[0].clientX;touchY=e.changedTouches[0].clientY;},{passive:true});
+  canvas.addEventListener('touchend',e=>{
+    if(!e.changedTouches.length)return;
+    const dx=e.changedTouches[0].clientX-touchX, dy=e.changedTouches[0].clientY-touchY;
+    if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;
+    setDirection(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up'));
+    if(!running&&!over) start();
+    e.preventDefault();
+  },{passive:false});
+  document.addEventListener('keydown',e=>{
+    const keys={ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};
+    if(keys[e.key]){e.preventDefault();setDirection(keys[e.key]);}
+    if(e.code==='Space'){e.preventDefault();running?pause():start();}
+  });
+  reset();
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
+})();
+</script>
+</body>
+</html>
